@@ -1,9 +1,9 @@
 #!/bin/bash
-# AI Status - Stop Hook
+# claude_claw - Stop Hook
 # Claude finished its turn -> screen shows Idle immediately.
 
-ESP32_HOST="10.0.0.182"
-LOG_FILE="/tmp/ai-status-hooks.log"
+ESP32_HOST="192.168.66.132"
+LOG_FILE="/tmp/claude-claw-hooks.log"
 
 INPUT=$(cat)
 

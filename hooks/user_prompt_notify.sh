@@ -1,9 +1,9 @@
 #!/bin/bash
-# AI Status - UserPromptSubmit Hook
+# claude_claw - UserPromptSubmit Hook
 # User submitted a prompt -> screen shows Working.
 
-ESP32_HOST="10.0.0.182"
-LOG_FILE="/tmp/ai-status-hooks.log"
+ESP32_HOST="192.168.66.132"
+LOG_FILE="/tmp/claude-claw-hooks.log"
 
 INPUT=$(cat)
 

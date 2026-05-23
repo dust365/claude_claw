@@ -1,12 +1,12 @@
 /**
- * AI Status - ESP32-C6 Firmware
+ * claude_claw - ESP32-C6 Firmware
  *
  * Physical status indicator for Claude Code.
  * Displays current state (Idle/Working/Approval/Error) on 1.47" ST7789 screen.
  * Receives state updates via HTTP from Claude Code hooks.
  *
  * Hardware: Waveshare ESP32-C6 + 1.47" ST7789 (172x320, SPI)
- * Network: WiFi + mDNS (ai-status.local)
+ * Network: WiFi + mDNS (claude-claw.local)
  * Provisioning: AP hotspot + Web page
  */
 
@@ -57,12 +57,12 @@ enum DeviceState {
 // =============================================================================
 // Configuration
 // =============================================================================
-#define AP_SSID          "AI-Status-Setup"
+#define AP_SSID          "claude_claw"
 #define AP_PASSWORD      "12345678"  // WPA2; min 8 chars required by 802.11
-#define MDNS_HOSTNAME    "ai-status"
+#define MDNS_HOSTNAME    "claude-claw"
 #define WORKING_STALE_TIMEOUT_MS 45000  // fallback if Claude Stop hook is missed
 #define DEFAULT_IDLE_DELAY_MS 12000     // optional idle delay for manual/debug POSTs
-#define PREFS_NAMESPACE  "ai-status"
+#define PREFS_NAMESPACE  "claude_claw"
 
 // =============================================================================
 // Global Objects
@@ -195,7 +195,7 @@ void drawConnectedScreen(String ip) {
     drawCenteredText("Connected!", 100, 2);
     drawCenteredText("IP:", 150, 1);
     drawCenteredText(ip.c_str(), 165, 2);
-    drawCenteredText("ai-status.local", 210, 1);
+    drawCenteredText("claude-claw.local", 210, 1);
 }
 
 // =============================================================================
@@ -209,7 +209,7 @@ const char PROVISIONING_HTML[] PROGMEM = R"rawliteral(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Status - WiFi Setup</title>
+    <title>claude_claw - WiFi Setup</title>
     <style>
         body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #fff;
                margin: 0; padding: 20px; min-height: 100vh; }
@@ -228,7 +228,7 @@ const char PROVISIONING_HTML[] PROGMEM = R"rawliteral(
 </head>
 <body>
     <div class="container">
-        <h1>AI Status</h1>
+        <h1>claude_claw</h1>
         <p class="status">Configure WiFi to get started</p>
         <form action="/save" method="POST">
             <label>WiFi Network (SSID)</label>
@@ -248,7 +248,7 @@ const char SAVE_SUCCESS_HTML[] PROGMEM = R"rawliteral(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Status - Saved</title>
+    <title>claude_claw - Saved</title>
     <style>
         body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #fff;
                margin: 0; padding: 20px; min-height: 100vh; display: flex;
@@ -541,7 +541,7 @@ bool startMDNS() {
 void setup() {
     Serial.begin(115200);
     delay(500);
-    Serial.println("\n=== AI Status Starting ===");
+    Serial.println("\n=== claude_claw Starting ===");
 
     // Keep backlight OFF during WiFi bring-up. The LCD backlight pulls ~60 mA
     // and the SPI init burst hammers flash — both interfere with WiFi RF
@@ -593,7 +593,7 @@ void setup() {
     // Backlight on only after the screen has real content to show.
     digitalWrite(TFT_BL, HIGH);
 
-    Serial.println("=== AI Status Ready ===");
+    Serial.println("=== claude_claw Ready ===");
 }
 
 void loop() {

@@ -1,10 +1,10 @@
 #!/bin/bash
-# AI Status - PostToolUse Hook
+# claude_claw - PostToolUse Hook
 # Tool finished. If it errored, flip screen to Error. Otherwise return to Working
 # so an Approval prompt is cleared after the approved tool finishes.
 
-ESP32_HOST="10.0.0.182"
-LOG_FILE="/tmp/ai-status-hooks.log"
+ESP32_HOST="192.168.66.132"
+LOG_FILE="/tmp/claude-claw-hooks.log"
 
 INPUT=$(cat)
 

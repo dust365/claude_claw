@@ -1,9 +1,9 @@
 #!/bin/bash
-# AI Status - Notification / PermissionRequest Hook
+# claude_claw - Notification / PermissionRequest Hook
 # Claude needs user attention -> screen shows Approval.
 
-ESP32_HOST="10.0.0.182"
-LOG_FILE="/tmp/ai-status-hooks.log"
+ESP32_HOST="192.168.66.132"
+LOG_FILE="/tmp/claude-claw-hooks.log"
 
 INPUT=$(cat)
 
