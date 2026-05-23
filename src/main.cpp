@@ -497,36 +497,48 @@ void setup() {
     delay(500);
     Serial.println("\n=== AI Status Starting ===");
 
-    // Initialize backlight
+    // Keep backlight OFF during WiFi bring-up. The LCD backlight pulls ~60 mA
+    // and the SPI init burst hammers flash — both interfere with WiFi RF
+    // calibration (which itself reads timing-sensitive data from flash at
+    // init). Doing WiFi first, display second eliminates the mutual exclusion
+    // we were seeing where either the AP broadcast OR the screen would work
+    // per boot, but not both.
     pinMode(TFT_BL, OUTPUT);
-    digitalWrite(TFT_BL, HIGH);
+    digitalWrite(TFT_BL, LOW);
 
-    // Initialize display
+    char apStatus[64] = "";
+    bool provisioning = false;
+
+    // WiFi FIRST — touch nothing on the SPI bus until this returns.
+    if (connectToWiFi()) {
+        wifiConnected = true;
+        startMDNS();
+    } else {
+        startProvisioningMode(apStatus, sizeof(apStatus));
+        provisioning = true;
+    }
+
+    // Let WiFi settle before we kick the SPI bus.
+    delay(500);
+
+    // NOW initialize the display.
     gfx->begin();
     gfx->fillScreen(0x0000);
     gfx->setTextWrap(false);
 
-    // Try connecting to saved WiFi
-    if (connectToWiFi()) {
-        wifiConnected = true;
-
-        // Start mDNS
-        startMDNS();
-
-        // Show connected screen briefly
+    if (provisioning) {
+        drawProvisioningScreen(apStatus);
+    } else {
         drawConnectedScreen(WiFi.localIP().toString());
         delay(3000);
-
-        // Enter normal mode
         startNormalMode();
         currentState = STATE_IDLE;
         lastEventTime = millis();
         drawState(currentState);
-
-    } else {
-        // No credentials or connection failed → provisioning mode
-        startProvisioningMode();
     }
+
+    // Backlight on only after the screen has real content to show.
+    digitalWrite(TFT_BL, HIGH);
 
     Serial.println("=== AI Status Ready ===");
 }

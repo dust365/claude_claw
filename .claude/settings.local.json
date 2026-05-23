@@ -12,7 +12,8 @@
       "Bash(~/.platformio/penv/bin/esptool.py --chip esp32c6 --port /dev/cu.usbmodem83101 --before default_reset --after hard_reset flash_id)",
       "Bash(echo \"UPLOAD_EXIT=$?\")",
       "Bash(python3)",
-      "Bash(lsof /dev/cu.usbmodem*)"
+      "Bash(lsof /dev/cu.usbmodem*)",
+      "Bash(pio run *)"
     ]
   }
 }
