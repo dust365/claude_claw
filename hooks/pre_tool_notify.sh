@@ -14,12 +14,12 @@ log_hook() {
 post_state() {
     local state="$1"
     local code
-    code=$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 0.3 --max-time 1         -X POST "http://${ESP32_HOST}/status"         -H "Content-Type: application/json"         -d "{\"state\":\"${state}\"}")
+    code=$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 0.5 --max-time 2         -X POST "http://${ESP32_HOST}/status"         -H "Content-Type: application/json"         -d "{\"state\":\"${state}\"}")
     local rc=$?
     printf '[%s] hook=%s post_state=%s host=%s http_code=%s rc=%s\n'         "$(date '+%Y-%m-%d %H:%M:%S')"         "$(basename "$0")"         "$state"         "$ESP32_HOST"         "$code"         "$rc" >> "$LOG_FILE" 2>/dev/null || true
 }
 
 log_hook "working"
-post_state "working" &
+post_state "working"
 
 exit 0

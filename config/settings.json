@@ -6,7 +6,7 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/user_prompt_notify.sh",
-            "timeout": 1
+            "timeout": 3
           }
         ]
       }
@@ -18,7 +18,7 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/pre_tool_notify.sh",
-            "timeout": 1,
+            "timeout": 3,
             "async": true
           }
         ]
@@ -31,7 +31,7 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/post_tool_notify.sh",
-            "timeout": 1,
+            "timeout": 3,
             "async": true
           }
         ]
@@ -44,7 +44,7 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/notification_notify.sh",
-            "timeout": 1,
+            "timeout": 3,
             "async": true
           }
         ]
@@ -57,7 +57,20 @@
           {
             "type": "command",
             "command": "~/.claude/hooks/notification_notify.sh",
-            "timeout": 1,
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/stop_notify.sh",
+            "timeout": 3,
             "async": true
           }
         ]

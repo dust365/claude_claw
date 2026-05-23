@@ -60,7 +60,8 @@ enum DeviceState {
 #define AP_SSID          "AI-Status-Setup"
 #define AP_PASSWORD      "12345678"  // WPA2; min 8 chars required by 802.11
 #define MDNS_HOSTNAME    "ai-status"
-#define IDLE_TIMEOUT_MS  60000  // 60 seconds to return to idle
+#define WORKING_STALE_TIMEOUT_MS 45000  // fallback if Claude Stop hook is missed
+#define DEFAULT_IDLE_DELAY_MS 12000     // optional idle delay for manual/debug POSTs
 #define PREFS_NAMESPACE  "ai-status"
 
 // =============================================================================
@@ -79,6 +80,7 @@ Preferences prefs;
 
 DeviceState currentState = STATE_IDLE;
 unsigned long lastEventTime = 0;
+unsigned long pendingIdleAt = 0;
 bool wifiConnected = false;
 bool inProvisioningMode = false;
 
@@ -405,6 +407,16 @@ void handleStatusPost() {
     DeviceState newState = currentState;
 
     if (strcmp(state, "idle") == 0) {
+        unsigned long delayMs = doc["delay"] | 0;
+        if (delayMs > 0) {
+            pendingIdleAt = millis() + delayMs;
+            server.send(200, "application/json", "{\"status\":\"ok\",\"state\":\"idle\",\"pending\":true}");
+            Serial.printf("[State] idle scheduled | delay=%lums | dueIn=%lums | current=%s\n",
+                          delayMs,
+                          pendingIdleAt - millis(),
+                          stateName(currentState));
+            return;
+        }
         newState = STATE_IDLE;
     } else if (strcmp(state, "working") == 0) {
         newState = STATE_WORKING;
@@ -419,6 +431,15 @@ void handleStatusPost() {
     }
 
     DeviceState oldState = currentState;
+    if (pendingIdleAt != 0 && newState != STATE_IDLE) {
+        Serial.printf("[State] pending idle canceled | new=%s | wasDueIn=%lums\n",
+                      stateName(newState),
+                      pendingIdleAt > millis() ? pendingIdleAt - millis() : 0);
+        pendingIdleAt = 0;
+    }
+    if (newState == STATE_IDLE) {
+        pendingIdleAt = 0;
+    }
     currentState = newState;
     lastEventTime = millis();
     drawState(currentState);
@@ -584,30 +605,47 @@ void loop() {
     if (millis() - lastHeartbeat > 5000) {
         lastHeartbeat = millis();
         if (inProvisioningMode) {
-            Serial.printf("[HB] AP mode | clients=%d | IP=%s | mode=%d | state=%s | lastEventAge=%lums\n",
+            Serial.printf("[HB] AP mode | clients=%d | IP=%s | mode=%d | state=%s | lastEventAge=%lums | pendingIdleIn=%lums\n",
                           WiFi.softAPgetStationNum(),
                           WiFi.softAPIP().toString().c_str(),
                           (int)WiFi.getMode(),
                           stateName(currentState),
-                          millis() - lastEventTime);
+                          millis() - lastEventTime,
+                          pendingIdleAt > millis() ? pendingIdleAt - millis() : 0);
         } else {
-            Serial.printf("[HB] STA | status=%d | IP=%s | RSSI=%d | state=%s | lastEventAge=%lums\n",
+            Serial.printf("[HB] STA | status=%d | IP=%s | RSSI=%d | state=%s | lastEventAge=%lums | pendingIdleIn=%lums\n",
                           WiFi.status(),
                           WiFi.localIP().toString().c_str(),
                           WiFi.RSSI(),
                           stateName(currentState),
-                          millis() - lastEventTime);
+                          millis() - lastEventTime,
+                          pendingIdleAt > millis() ? pendingIdleAt - millis() : 0);
         }
     }
 
-    // Only WORKING auto-times-out to IDLE. APPROVAL and ERROR are sticky:
-    // they represent "user attention required" / "something broke" — losing
-    // those signals to a timer defeats the whole point of the device.
+    if (!inProvisioningMode && pendingIdleAt != 0 && millis() >= pendingIdleAt) {
+        DeviceState oldState = currentState;
+        pendingIdleAt = 0;
+        currentState = STATE_IDLE;
+        lastEventTime = millis();
+        drawState(currentState);
+        Serial.printf("[State] %s -> idle | reason=delayed-idle | uptime=%lus\n",
+                      stateName(oldState),
+                      millis() / 1000);
+    }
+
+    // Only WORKING auto-times-out to IDLE. This is a stale-state fallback for
+    // missed Stop hooks. APPROVAL and ERROR stay sticky because they require
+    // user attention.
     if (!inProvisioningMode && currentState == STATE_WORKING) {
-        if (millis() - lastEventTime > IDLE_TIMEOUT_MS) {
+        if (millis() - lastEventTime > WORKING_STALE_TIMEOUT_MS) {
             currentState = STATE_IDLE;
+            pendingIdleAt = 0;
             drawState(currentState);
-            Serial.printf("[State] working -> idle | reason=timeout | uptime=%lus\n", millis() / 1000);
+            Serial.printf("[State] working -> idle | reason=stale-working-timeout | age=%lums | uptime=%lus\n",
+                          millis() - lastEventTime,
+                          millis() / 1000);
+            lastEventTime = millis();
         }
     }
 

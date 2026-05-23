@@ -26,18 +26,21 @@ Mac (Claude Code)                         ESP32-C6 (1.47" ST7789)
      │  PostToolUse hook (error)               │
      │  POST {"state":"error"}    ─────────→  Screen → Red text/icon
      │                                        │
-     │  Working state, no new events           │
-     │  for 60 seconds                         Timer  → White text/icon
+     │  Stop hook                              │
+     │  POST {"state":"idle"}     ─────────→  Screen → White text/icon
+     │                                        │
+     │  Working state, no Stop event           │
+     │  for 45 seconds                         Timer  → White text/icon
 ```
 
-Hook scripts use mDNS: `http://ai-status.local` — no IP configuration needed.
+Hook scripts currently post to the device IP configured in `hooks/*.sh`.
 
 ## States
 
 | State    | Icon | Label    | Foreground | Background     | Trigger                                           |
 | -------- | ---- | -------- | ---------- | -------------- | ------------------------------------------------- |
-| Idle     | `~`  | Idle     | #ffffff    | #1a1a2e (dark) | Working timeout                                   |
-| Working  | `*`  | Working  | #00ff00    | #1a1a2e (dark) | PreToolUse / PostToolUse success                  |
+| Idle     | `~`  | Idle     | #ffffff    | #1a1a2e (dark) | Stop hook or stale Working timeout                |
+| Working  | `*`  | Working  | #00ff00    | #1a1a2e (dark) | UserPromptSubmit or PreToolUse                    |
 | Approval | `!`  | Approval | #ffc400    | #1a1a2e (dark) | Notification or PermissionRequest hook            |
 | Error    | `X`  | Error    | #ff3030    | #1a1a2e (dark) | PostToolUse with `tool_response.is_error`         |
 
@@ -49,7 +52,7 @@ State transitions:
 - Any → Working: UserPromptSubmit fires (prompt submitted) or PreToolUse fires (tool about to run)
 - Working → Error: PostToolUse with error
 - Any → Approval: Notification or PermissionRequest (sticky — won't auto-clear, prevents missed prompts)
-- Working → Idle: 60s of inactivity
+- Working → Idle: Stop switches to Idle immediately; if Stop is missed, Working falls back to Idle after 45s of inactivity
 - Approval / Error → next state: any subsequent hook event clears them
 
 ## Hardware
@@ -128,7 +131,7 @@ ai-status/
 ├── hooks/
 │   ├── user_prompt_notify.sh    # UserPromptSubmit → Working
 │   ├── pre_tool_notify.sh       # PreToolUse → Working
-│   ├── post_tool_notify.sh      # PostToolUse → Error (on failure)
+│   ├── post_tool_notify.sh      # PostToolUse → Working/Error
 │   ├── notification_notify.sh   # Notification / PermissionRequest → Approval
 │   └── stop_notify.sh           # Manual/debug idle script, not installed as a Claude hook
 └── config/
@@ -213,7 +216,15 @@ If you already have a `~/.claude/settings.json`, merge the `hooks` field. The fi
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "~/.claude/hooks/notification_notify.sh", "timeout": 1, "async": true }
+          { "type": "command", "command": "~/.claude/hooks/notification_notify.sh", "timeout": 3, "async": true }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "~/.claude/hooks/stop_notify.sh", "timeout": 3, "async": true }
         ]
       }
     ],
@@ -225,10 +236,11 @@ If you already have a `~/.claude/settings.json`, merge the `hooks` field. The fi
 
 - `UserPromptSubmit` — fires when you submit a prompt → green text/icon (Working), including pure chat turns with no tool calls
 - `PreToolUse` — fires before each tool call → green text/icon (Working)
-- `PostToolUse` — fires after each tool call → red text/icon (Error) only when `tool_response.is_error` is set; otherwise no-op so the Working state sticks
+- `PostToolUse` — fires after each tool call → red text/icon (Error) when `tool_response.is_error` is set; otherwise green text/icon (Working), which clears Approval after an approved tool completes
 - `Notification` — fires when Claude Code actually needs your attention → orange text/icon (Approval)
 - `PermissionRequest` — fires when a tool approval prompt is shown → orange text/icon (Approval)
-- `Stop` is intentionally not installed. Claude Code can emit Stop before the visible thinking UI is done, so Idle is controlled by the ESP32 working timeout instead.
+- `Stop` — switches to Idle immediately after Claude finishes a turn.
+- ESP32 fallback — if Stop is missed, stale Working returns to Idle after 45s.
 - `matcher: ""` — empty string matches all tools. Note `matcher` is a regex, not a glob, so `"*"` is **not** valid.
 - None of the scripts emit JSON on stdout, so they never interfere with Claude Code's approval flow.
 

@@ -1,6 +1,7 @@
 #!/bin/bash
 # AI Status - PostToolUse Hook
-# Tool finished. If it errored, flip screen to Error. Otherwise no-op.
+# Tool finished. If it errored, flip screen to Error. Otherwise return to Working
+# so an Approval prompt is cleared after the approved tool finishes.
 
 ESP32_HOST="10.0.0.182"
 LOG_FILE="/tmp/ai-status-hooks.log"
@@ -14,7 +15,7 @@ log_hook() {
 post_state() {
     local state="$1"
     local code
-    code=$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 0.3 --max-time 1         -X POST "http://${ESP32_HOST}/status"         -H "Content-Type: application/json"         -d "{\"state\":\"${state}\"}")
+    code=$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 0.5 --max-time 2         -X POST "http://${ESP32_HOST}/status"         -H "Content-Type: application/json"         -d "{\"state\":\"${state}\"}")
     local rc=$?
     printf '[%s] hook=%s post_state=%s host=%s http_code=%s rc=%s\n'         "$(date '+%Y-%m-%d %H:%M:%S')"         "$(basename "$0")"         "$state"         "$ESP32_HOST"         "$code"         "$rc" >> "$LOG_FILE" 2>/dev/null || true
 }
@@ -34,9 +35,10 @@ else:
 
 if [ "$HAS_ERROR" = "yes" ]; then
     log_hook "error"
-    post_state "error" &
+    post_state "error"
 else
-    log_hook "noop"
+    log_hook "working"
+    post_state "working"
 fi
 
 exit 0
