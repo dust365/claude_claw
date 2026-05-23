@@ -2,8 +2,14 @@
 # claude_claw - UserPromptSubmit Hook
 # User submitted a prompt -> screen shows Working.
 
-ESP32_HOST="192.168.66.132"
-LOG_FILE="/tmp/claude-claw-hooks.log"
+ESP32_ENV_FILE="${CLAUDE_CLAW_ENV:-$HOME/.claude/claude-claw.env}"
+if [ -f "$ESP32_ENV_FILE" ]; then
+    # shellcheck disable=SC1090
+    . "$ESP32_ENV_FILE"
+fi
+
+: "${ESP32_HOST:=claude-claw.local}"
+: "${LOG_FILE:=/tmp/claude-claw-hooks.log}"
 
 INPUT=$(cat)
 

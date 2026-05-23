@@ -42,16 +42,16 @@ Mac / Claude Code                         ESP32-C6 / 1.47" ST7789
      |  45 秒兜底超时               --------->  屏幕显示 Idle
 ```
 
-hook 脚本会向 C6 的 HTTP 接口发送请求。设备地址由 `hooks/*.sh` 里的 `ESP32_HOST` 配置。
+hook 脚本会向 C6 的 HTTP 接口发送请求。设备地址默认使用 `claude-claw.local`，也可以通过 `~/.claude/claude-claw.env` 里的 `ESP32_HOST` 统一覆盖。
 
 ## 状态说明
 
-| 状态 | 图标 | 文案 | 前景色 | 背景色 | 触发来源 |
-| --- | --- | --- | --- | --- | --- |
-| Idle | `~` | Idle | `#ffffff` | `#1a1a2e` | `Stop` hook 或 Working 超时兜底 |
-| Working | `*` | Working | `#00ff00` | `#1a1a2e` | `UserPromptSubmit`、`PreToolUse`、成功的 `PostToolUse` |
-| Approval | `!` | Approval | `#ffc400` | `#1a1a2e` | `Notification` 或 `PermissionRequest` |
-| Error | `X` | Error | `#ff3030` | `#1a1a2e` | 失败的 `PostToolUse` |
+| 状态     | 图标 | 文案     | 前景色    | 背景色    | 触发来源                                               |
+| -------- | ---- | -------- | --------- | --------- | ------------------------------------------------------ |
+| Idle     | `~`  | Idle     | `#ffffff` | `#1a1a2e` | `Stop` hook 或 Working 超时兜底                        |
+| Working  | `*`  | Working  | `#00ff00` | `#1a1a2e` | `UserPromptSubmit`、`PreToolUse`、成功的 `PostToolUse` |
+| Approval | `!`  | Approval | `#ffc400` | `#1a1a2e` | `Notification` 或 `PermissionRequest`                  |
+| Error    | `X`  | Error    | `#ff3030` | `#1a1a2e` | 失败的 `PostToolUse`                                   |
 
 状态流转：
 
@@ -71,14 +71,14 @@ hook 脚本会向 C6 的 HTTP 接口发送请求。设备地址由 `hooks/*.sh` 
 
 ### 引脚配置
 
-| 功能 | GPIO |
-| --- | --- |
-| SPI MOSI | 6 |
-| SPI SCK | 7 |
-| SPI CS | 14 |
-| DC | 15 |
-| RST | 21 |
-| Backlight | 22 |
+| 功能      | GPIO |
+| --------- | ---- |
+| SPI MOSI  | 6    |
+| SPI SCK   | 7    |
+| SPI CS    | 14   |
+| DC        | 15   |
+| RST       | 21   |
+| Backlight | 22   |
 
 ## 网络和配网
 
@@ -104,11 +104,15 @@ hook 脚本会向 C6 的 HTTP 接口发送请求。设备地址由 `hooks/*.sh` 
 - mDNS 主机名：`claude-claw.local`
 - HTTP 服务端口：`80`
 
-实际使用中，mDNS 可能受路由器或系统环境影响。更稳定的方式是把 hook 脚本里的 `ESP32_HOST` 改成设备 IP，例如：
+实际使用中，mDNS 可能受路由器或系统环境影响。更稳定的方式是把设备 IP 写到统一配置文件，例如：
 
 ```bash
-ESP32_HOST="10.0.0.182"
+cat > ~/.claude/claude-claw.env <<'EOF'
+ESP32_HOST="<C6_IP>"
+EOF
 ```
+
+`<C6_IP>` 以屏幕短暂显示的 IP、串口心跳日志或路由器后台为准。后续设备 IP 变化时只需要改这个文件，不需要逐个修改 hook 脚本。
 
 ## UI 设计
 
@@ -121,15 +125,15 @@ ESP32_HOST="10.0.0.182"
 
 ## 技术栈
 
-| 模块 | 选择 | 说明 |
-| --- | --- | --- |
-| 屏幕库 | Arduino_GFX | 适配 ST7789，使用简单 |
-| HTTP 服务 | WebServer / Arduino | 轻量，足够处理状态请求 |
-| 网络 | WiFi + ESPmDNS | 支持局域网访问和 mDNS |
-| 配网 | SoftAP + WebServer | 不需要额外 App |
-| 配置存储 | Preferences | 使用 NVS 持久保存 WiFi |
-| hook 脚本 | Bash + curl | Mac 上无额外依赖 |
-| 数据格式 | JSON | 和 Claude Code hook 输入输出习惯一致 |
+| 模块      | 选择                | 说明                                 |
+| --------- | ------------------- | ------------------------------------ |
+| 屏幕库    | Arduino_GFX         | 适配 ST7789，使用简单                |
+| HTTP 服务 | WebServer / Arduino | 轻量，足够处理状态请求               |
+| 网络      | WiFi + ESPmDNS      | 支持局域网访问和 mDNS                |
+| 配网      | SoftAP + WebServer  | 不需要额外 App                       |
+| 配置存储  | Preferences         | 使用 NVS 持久保存 WiFi               |
+| hook 脚本 | Bash + curl         | Mac 上无额外依赖                     |
+| 数据格式  | JSON                | 和 Claude Code hook 输入输出习惯一致 |
 
 ## 项目结构
 
@@ -182,17 +186,15 @@ cp hooks/*.sh ~/.claude/hooks/
 chmod +x ~/.claude/hooks/*.sh
 ```
 
-把脚本里的 C6 地址改成你的设备 IP：
+把 C6 地址写入统一配置文件：
 
 ```bash
-sed -i '' 's/^ESP32_HOST=.*/ESP32_HOST="10.0.0.182"/' ~/.claude/hooks/*.sh
+cat > ~/.claude/claude-claw.env <<'EOF'
+ESP32_HOST="<C6_IP>"
+EOF
 ```
 
-如果你也要同步修改项目里的默认地址：
-
-```bash
-sed -i '' 's/^ESP32_HOST=.*/ESP32_HOST="10.0.0.182"/' hooks/*.sh
-```
+如果你的网络能稳定解析 mDNS，也可以不创建这个文件，脚本会默认访问 `claude-claw.local`。
 
 ### 4. 配置 Claude Code
 
@@ -335,59 +337,158 @@ printf '{"prompt":"manual"}' | ~/.claude/hooks/user_prompt_notify.sh
 printf '{"tool_response":{}}' | ~/.claude/hooks/post_tool_notify.sh
 printf '{}' | ~/.claude/hooks/stop_notify.sh
 cat /tmp/claude-claw-hooks.log
-curl http://10.0.0.182/status
+curl "http://<C6_IP>/status"
 ```
 
 正常情况下，日志里应该看到 `http_code=200`，最后设备状态应该是 `idle`。
 
-## 手动测试状态
+## curl 测试方法
 
-把下面命令里的地址替换成你的 C6 IP 或 `claude-claw.local`。
+先设置测试目标。`<C6_IP>` 替换成屏幕、串口日志或路由器后台看到的设备 IP；如果你的网络能稳定解析 mDNS，也可以写成 `claude-claw.local`。
+
+```bash
+export CLAUDE_CLAW_HOST="<C6_IP>"
+```
+
+### 1. 检查设备是否可访问
+
+```bash
+curl --max-time 3 "http://${CLAUDE_CLAW_HOST}/status"
+```
+
+正常会返回类似：
+
+```json
+{"state":"idle","uptime":123}
+```
+
+如果这里超时，优先检查 Mac 和 C6 是否在同一个 WiFi、IP 是否正确、路由器是否开启客户端隔离。
+
+### 2. 切换四种状态
 
 ```bash
 # Idle
-curl -X POST http://10.0.0.182/status \
+curl --max-time 3 -X POST "http://${CLAUDE_CLAW_HOST}/status" \
   -H "Content-Type: application/json" \
   -d '{"state":"idle"}'
 
 # Working
-curl -X POST http://10.0.0.182/status \
+curl --max-time 3 -X POST "http://${CLAUDE_CLAW_HOST}/status" \
   -H "Content-Type: application/json" \
   -d '{"state":"working"}'
 
 # Approval
-curl -X POST http://10.0.0.182/status \
+curl --max-time 3 -X POST "http://${CLAUDE_CLAW_HOST}/status" \
   -H "Content-Type: application/json" \
   -d '{"state":"approval"}'
 
 # Error
-curl -X POST http://10.0.0.182/status \
+curl --max-time 3 -X POST "http://${CLAUDE_CLAW_HOST}/status" \
   -H "Content-Type: application/json" \
   -d '{"state":"error"}'
-
-# 查看当前状态
-curl http://10.0.0.182/status
-
-# 清除 WiFi 配置并重启到 AP 配网模式
-curl -X POST http://10.0.0.182/reset
 ```
+
+每次请求正常会返回：
+
+```json
+{"status":"ok","state":"working"}
+```
+
+其中 `state` 会随请求变化。
+
+### 3. 测试延迟回到 Idle
+
+```bash
+curl --max-time 3 -X POST "http://${CLAUDE_CLAW_HOST}/status" \
+  -H "Content-Type: application/json" \
+  -d '{"state":"working"}'
+
+curl --max-time 3 -X POST "http://${CLAUDE_CLAW_HOST}/status" \
+  -H "Content-Type: application/json" \
+  -d '{"state":"idle","delay":3000}'
+```
+
+第二个请求会让设备 3 秒后回到 `Idle`。
+
+### 4. 查看当前状态
+
+```bash
+curl --max-time 3 "http://${CLAUDE_CLAW_HOST}/status"
+```
+
+### 5. 清除 WiFi 配置并重新配网
+
+这个命令会清除已保存 WiFi，并重启到 AP 配网模式：
+
+```bash
+curl --max-time 3 -X POST "http://${CLAUDE_CLAW_HOST}/reset"
+```
+
+### 6. 验证 hook 脚本链路
+
+确认 `~/.claude/claude-claw.env` 指向当前设备：
+
+```bash
+cat > ~/.claude/claude-claw.env <<'EOF'
+ESP32_HOST="<C6_IP>"
+EOF
+```
+
+然后手动执行 hook：
+
+```bash
+: > /tmp/claude-claw-hooks.log
+printf '{"prompt":"manual"}' | ~/.claude/hooks/user_prompt_notify.sh
+printf '{"tool_response":{}}' | ~/.claude/hooks/post_tool_notify.sh
+printf '{}' | ~/.claude/hooks/stop_notify.sh
+cat /tmp/claude-claw-hooks.log
+curl --max-time 3 "http://${CLAUDE_CLAW_HOST}/status"
+```
+
+正常日志应包含 `http_code=200 rc=0`。
+
+### 7. 常见错误
+
+```text
+curl: (28) Operation timed out
+```
+
+表示 Mac 到 C6 的 HTTP 请求超时，通常是 IP 错、不同 WiFi、路由器隔离或设备未联网。
+
+```text
+curl: (6) Could not resolve host: claude-claw.local
+```
+
+表示 mDNS 解析失败。改用设备 IP，并写入 `~/.claude/claude-claw.env`。
+
+```text
+{"error":"invalid json"}
+```
+
+表示 `POST /status` 的请求体不是合法 JSON。
+
+```text
+{"error":"unknown state"}
+```
+
+表示 `state` 只能是 `idle`、`working`、`approval` 或 `error`。
 
 ## HTTP API
 
-| 方法 | 路径 | 请求体 | 作用 |
-| --- | --- | --- | --- |
-| `POST` | `/status` | `{"state":"idle"}` | 显示 Idle |
-| `POST` | `/status` | `{"state":"working"}` | 显示 Working |
-| `POST` | `/status` | `{"state":"approval"}` | 显示 Approval |
-| `POST` | `/status` | `{"state":"error"}` | 显示 Error |
-| `POST` | `/status` | `{"state":"idle","delay":12000}` | 延迟 12 秒后显示 Idle |
-| `GET` | `/status` | 无 | 返回当前状态和运行时间 |
-| `POST` | `/reset` | 无 | 清除 WiFi 配置并重启到 AP 配网模式 |
+| 方法   | 路径      | 请求体                           | 作用                               |
+| ------ | --------- | -------------------------------- | ---------------------------------- |
+| `POST` | `/status` | `{"state":"idle"}`               | 显示 Idle                          |
+| `POST` | `/status` | `{"state":"working"}`            | 显示 Working                       |
+| `POST` | `/status` | `{"state":"approval"}`           | 显示 Approval                      |
+| `POST` | `/status` | `{"state":"error"}`              | 显示 Error                         |
+| `POST` | `/status` | `{"state":"idle","delay":12000}` | 延迟 12 秒后显示 Idle              |
+| `GET`  | `/status` | 无                               | 返回当前状态和运行时间             |
+| `POST` | `/reset`  | 无                               | 清除 WiFi 配置并重启到 AP 配网模式 |
 
 `GET /status` 返回示例：
 
 ```json
-{"state":"idle","uptime":123}
+{ "state": "idle", "uptime": 123 }
 ```
 
 ## 排查

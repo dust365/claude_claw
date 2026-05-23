@@ -3,8 +3,14 @@
 # Tool finished. If it errored, flip screen to Error. Otherwise return to Working
 # so an Approval prompt is cleared after the approved tool finishes.
 
-ESP32_HOST="192.168.66.132"
-LOG_FILE="/tmp/claude-claw-hooks.log"
+ESP32_ENV_FILE="${CLAUDE_CLAW_ENV:-$HOME/.claude/claude-claw.env}"
+if [ -f "$ESP32_ENV_FILE" ]; then
+    # shellcheck disable=SC1090
+    . "$ESP32_ENV_FILE"
+fi
+
+: "${ESP32_HOST:=claude-claw.local}"
+: "${LOG_FILE:=/tmp/claude-claw-hooks.log}"
 
 INPUT=$(cat)
 

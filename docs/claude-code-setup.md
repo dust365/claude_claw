@@ -29,10 +29,10 @@ Claude Code 触发的 hook 会向 C6 发送 HTTP 请求：
 先确认 C6 已经连上 WiFi，并能从 Mac 访问：
 
 ```bash
-curl http://10.0.0.182/status
+curl "http://<C6_IP>/status"
 ```
 
-如果你的设备 IP 不是 `10.0.0.182`，后面的 `ESP32_HOST` 要改成你的 C6 IP。设备刚连上 WiFi 时屏幕会短暂显示 IP，也可以在路由器后台查看。
+`<C6_IP>` 以设备刚连上 WiFi 时屏幕短暂显示的 IP、串口心跳日志或路由器后台为准。如果你的网络能稳定解析 mDNS，也可以使用 `claude-claw.local`。
 
 ## 1. 安装 hook 脚本
 
@@ -44,17 +44,15 @@ cp hooks/*.sh ~/.claude/hooks/
 chmod +x ~/.claude/hooks/*.sh
 ```
 
-然后把 hook 脚本里的设备地址改成你的 C6 IP：
+然后把设备地址写到统一配置文件：
 
 ```bash
-sed -i '' 's/^ESP32_HOST=.*/ESP32_HOST="10.0.0.182"/' ~/.claude/hooks/*.sh
+cat > ~/.claude/claude-claw.env <<'EOF'
+ESP32_HOST="<C6_IP>"
+EOF
 ```
 
-如果你要改项目里的默认地址，也同步改 repo 里的脚本：
-
-```bash
-sed -i '' 's/^ESP32_HOST=.*/ESP32_HOST="10.0.0.182"/' hooks/*.sh
-```
+后续设备 IP 变化时只需要改 `~/.claude/claude-claw.env`。不要逐个修改 hook 脚本。没有这个文件时，脚本默认访问 `claude-claw.local`。
 
 ## 2. 修改 `~/.claude/settings.json`
 
@@ -196,7 +194,7 @@ printf '{"prompt":"manual"}' | ~/.claude/hooks/user_prompt_notify.sh
 printf '{"tool_response":{}}' | ~/.claude/hooks/post_tool_notify.sh
 printf '{}' | ~/.claude/hooks/stop_notify.sh
 cat /tmp/claude-claw-hooks.log
-curl http://10.0.0.182/status
+curl "http://<C6_IP>/status"
 ```
 
 正常情况下日志里应该看到 `http_code=200`，最后状态应该是：
@@ -227,10 +225,10 @@ tail -f /tmp/claude-claw-hooks.log
 先确认 C6 可访问：
 
 ```bash
-curl http://10.0.0.182/status
+curl "http://<C6_IP>/status"
 ```
 
-如果 curl 不通，检查 C6 IP、Mac 和 C6 是否在同一个 WiFi、以及 hook 脚本里的 `ESP32_HOST` 是否正确。
+如果 curl 不通，检查 C6 IP、Mac 和 C6 是否在同一个 WiFi、路由器是否开启客户端隔离，以及 `~/.claude/claude-claw.env` 里的 `ESP32_HOST` 是否正确。
 
 ### curl 测试可以，Claude Code 没反应
 
@@ -284,4 +282,3 @@ curl --connect-timeout 0.5 --max-time 2
 ```
 
 如果日志里经常出现 `http_code=000 rc=28`，说明到 C6 的网络请求超时。优先检查 C6 的 IP、WiFi 信号和路由器隔离设置。
-
