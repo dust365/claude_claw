@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sL \"https://raw.githubusercontent.com/openai/codex/main/codex-rs/hooks/src/schema.rs\")",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/openai/codex/main/codex-rs/hooks/src/declarations.rs\")",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/openai/codex/main/codex-rs/hooks/src/registry.rs\")",
+      "Bash(curl -sL \"https://github.com/openai/codex/tree/main/codex-rs/hooks/src/engine\")",
+      "Bash(curl -sL \"https://raw.githubusercontent.com/openai/codex/main/codex-rs/hooks/src/lib.rs\")",
+      "Bash(curl -sL \"https://github.com/openai/codex/tree/main/codex-rs/config/src\")"
+    ]
+  }
+}

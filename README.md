@@ -1,8 +1,15 @@
 # claude_claw
 
-claude_claw 是一个基于 ESP32-C6 的 Claude Code 状态屏。它通过 Claude Code hooks 接收当前工作状态，并在 1.47 英寸 ST7789 屏幕上显示 Idle、Working、Approval、Error 四种状态。
+claude_claw 是一个基于 ESP32-C6 的 AI 编程助手状态屏。它通过 hooks 接收当前工作状态，并在 1.47 英寸 ST7789 屏幕上显示 Idle、Working、Approval、Error 四种状态。
 
-它的主要用途是：不用一直盯着终端，也能知道 Claude Code 是否正在工作、是否需要审批、是否已经完成回复。
+它的主要用途是：不用一直盯着终端，也能知道 Claude Code / Codex CLI 是否正在工作、是否需要审批、是否已经完成回复。
+
+目前支持的客户端：
+
+- **Claude Code** —— 见 [docs/claude-code-setup.md](docs/claude-code-setup.md)
+- **OpenAI Codex CLI** —— 见 [docs/codex-cli-setup.md](docs/codex-cli-setup.md)
+
+两边可以共存，同一台 Mac 上 Claude Code 和 Codex CLI 的状态都会推到同一块屏。
 
 ## 功能概览
 
@@ -152,9 +159,11 @@ claude_claw/
 │   ├── notification_notify.sh   # Notification / PermissionRequest -> Approval
 │   └── stop_notify.sh           # Stop -> Idle
 ├── docs/
-│   └── claude-code-setup.md     # Claude Code hook 配置教程
+│   ├── claude-code-setup.md     # Claude Code hook 配置教程
+│   └── codex-cli-setup.md       # Codex CLI hook 配置教程
 └── config/
-    └── settings.json            # Claude Code hooks 配置模板
+    ├── settings.json            # Claude Code hooks 配置模板
+    └── codex-hooks.json         # Codex CLI hooks 配置模板
 ```
 
 ## 快速开始
@@ -341,6 +350,21 @@ curl "http://<C6_IP>/status"
 ```
 
 正常情况下，日志里应该看到 `http_code=200`，最后设备状态应该是 `idle`。
+
+### 6. 同时接 Codex CLI（可选）
+
+如果你也用 OpenAI Codex CLI，可以让两边的状态都推到同一块屏。Codex 的 hook 系统和 Claude Code 几乎一对一对应，复用 `~/.claude/hooks/*.sh` 即可，无需修改脚本。
+
+最小步骤：
+
+```bash
+mkdir -p ~/.codex
+cp config/codex-hooks.json ~/.codex/hooks.json
+```
+
+如果你已经有 `~/.codex/hooks.json` 或更喜欢 `~/.codex/config.toml`，详细的合并方式和完整配置见 [docs/codex-cli-setup.md](docs/codex-cli-setup.md)。
+
+修改后需要完全重启 Codex CLI。
 
 ## curl 测试方法
 
