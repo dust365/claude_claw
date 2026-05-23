@@ -63,8 +63,8 @@ State transitions:
 | SPI SCK | 7 |
 | SPI CS | 14 |
 | DC | 15 |
-| RST | 13 |
-| Backlight | 11 |
+| RST | 21 |
+| Backlight | 22 |
 
 ## Network & Provisioning
 

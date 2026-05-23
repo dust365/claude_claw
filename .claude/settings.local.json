@@ -13,7 +13,12 @@
       "Bash(echo \"UPLOAD_EXIT=$?\")",
       "Bash(python3)",
       "Bash(lsof /dev/cu.usbmodem*)",
-      "Bash(pio run *)"
+      "Bash(pio run *)",
+      "WebFetch(domain:www.waveshare.com)",
+      "WebSearch",
+      "WebFetch(domain:files.waveshare.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(curl -sL -A \"Mozilla/5.0\" \"https://www.waveshare.com/wiki/ESP32-C6-LCD-1.47\" -o /tmp/wave.html)"
     ]
   }
 }
