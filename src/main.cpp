@@ -45,12 +45,14 @@ enum DeviceState {
 
 #define COLOR_WHITE 0xFFFF
 
-// State background colors (24-bit; converted to RGB565 at draw time)
+// State colors (24-bit; converted to RGB565 at draw time)
 #define BG_IDLE     0x1a1a2e
-#define BG_WORKING  0x1565c0
-#define BG_APPROVAL 0xe65100
-#define BG_ERROR    0xb71c1c
 #define BG_CONNECTED 0x0d5016
+
+#define FG_IDLE     0xFFFFFF
+#define FG_WORKING  0x00ff00
+#define FG_APPROVAL 0xffc400
+#define FG_ERROR    0xff3030
 
 // =============================================================================
 // Configuration
@@ -58,7 +60,7 @@ enum DeviceState {
 #define AP_SSID          "AI-Status-Setup"
 #define AP_PASSWORD      "12345678"  // WPA2; min 8 chars required by 802.11
 #define MDNS_HOSTNAME    "ai-status"
-#define IDLE_TIMEOUT_MS  10000  // 10 seconds to return to idle
+#define IDLE_TIMEOUT_MS  60000  // 60 seconds to return to idle
 #define PREFS_NAMESPACE  "ai-status"
 
 // =============================================================================
@@ -79,6 +81,16 @@ DeviceState currentState = STATE_IDLE;
 unsigned long lastEventTime = 0;
 bool wifiConnected = false;
 bool inProvisioningMode = false;
+
+const char* stateName(DeviceState state) {
+    switch (state) {
+        case STATE_IDLE:     return "idle";
+        case STATE_WORKING:  return "working";
+        case STATE_APPROVAL: return "approval";
+        case STATE_ERROR:    return "error";
+        default:             return "unknown";
+    }
+}
 
 // =============================================================================
 // Display Functions
@@ -118,24 +130,24 @@ static void drawCenteredText(const char* text, int y, int preferredSize) {
 }
 
 void drawState(DeviceState state) {
-    uint32_t bgHex;
+    uint32_t fgHex;
     const char* icon;
     const char* label;
 
     switch (state) {
         case STATE_WORKING:
-            bgHex = BG_WORKING;  icon = "*"; label = "Working"; break;
+            fgHex = FG_WORKING;  icon = "*"; label = "Working"; break;
         case STATE_APPROVAL:
-            bgHex = BG_APPROVAL; icon = "!"; label = "Approval"; break;
+            fgHex = FG_APPROVAL; icon = "!"; label = "Approval"; break;
         case STATE_ERROR:
-            bgHex = BG_ERROR;    icon = "X"; label = "Error"; break;
+            fgHex = FG_ERROR;    icon = "X"; label = "Error"; break;
         case STATE_IDLE:
         default:
-            bgHex = BG_IDLE;     icon = "~"; label = "Idle"; break;
+            fgHex = FG_IDLE;     icon = "~"; label = "Idle"; break;
     }
 
-    gfx->fillScreen(hexToRGB565(bgHex));
-    gfx->setTextColor(COLOR_WHITE);
+    gfx->fillScreen(hexToRGB565(BG_IDLE));
+    gfx->setTextColor(hexToRGB565(fgHex));
 
     const int iconSize = 8;
     const int labelSize = 3;
@@ -362,21 +374,30 @@ void startProvisioningMode(char* statusBuf, size_t statusBufLen) {
 // =============================================================================
 
 void handleStatusPost() {
+    String body = server.hasArg("plain") ? server.arg("plain") : "";
+    Serial.printf("[HTTP] POST /status from=%s len=%u body=%s\n",
+                  server.client().remoteIP().toString().c_str(),
+                  body.length(),
+                  body.c_str());
+
     if (!server.hasArg("plain")) {
+        Serial.println("[HTTP] POST /status rejected: no body");
         server.send(400, "application/json", "{\"error\":\"no body\"}");
         return;
     }
 
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, server.arg("plain"));
+    DeserializationError error = deserializeJson(doc, body);
 
     if (error) {
+        Serial.printf("[HTTP] POST /status rejected: invalid json (%s)\n", error.c_str());
         server.send(400, "application/json", "{\"error\":\"invalid json\"}");
         return;
     }
 
     const char* state = doc["state"];
     if (!state) {
+        Serial.println("[HTTP] POST /status rejected: missing state field");
         server.send(400, "application/json", "{\"error\":\"missing state field\"}");
         return;
     }
@@ -392,10 +413,12 @@ void handleStatusPost() {
     } else if (strcmp(state, "error") == 0) {
         newState = STATE_ERROR;
     } else {
+        Serial.printf("[HTTP] POST /status rejected: unknown state=%s\n", state);
         server.send(400, "application/json", "{\"error\":\"unknown state\"}");
         return;
     }
 
+    DeviceState oldState = currentState;
     currentState = newState;
     lastEventTime = millis();
     drawState(currentState);
@@ -403,23 +426,25 @@ void handleStatusPost() {
     String response = "{\"status\":\"ok\",\"state\":\"" + String(state) + "\"}";
     server.send(200, "application/json", response);
 
-    Serial.printf("[State] → %s\n", state);
+    Serial.printf("[State] %s -> %s | uptime=%lus | lastEvent=%lums\n",
+                  stateName(oldState),
+                  stateName(currentState),
+                  millis() / 1000,
+                  lastEventTime);
 }
 
 void handleStatusGet() {
-    const char* stateStr = "idle";
-    switch (currentState) {
-        case STATE_IDLE:     stateStr = "idle"; break;
-        case STATE_WORKING:  stateStr = "working"; break;
-        case STATE_APPROVAL: stateStr = "approval"; break;
-        case STATE_ERROR:    stateStr = "error"; break;
-    }
+    Serial.printf("[HTTP] GET /status from=%s state=%s uptime=%lus\n",
+                  server.client().remoteIP().toString().c_str(),
+                  stateName(currentState),
+                  millis() / 1000);
 
-    String response = "{\"state\":\"" + String(stateStr) + "\",\"uptime\":" + String(millis() / 1000) + "}";
+    String response = "{\"state\":\"" + String(stateName(currentState)) + "\",\"uptime\":" + String(millis() / 1000) + "}";
     server.send(200, "application/json", response);
 }
 
 void handleReset() {
+    Serial.printf("[HTTP] POST /reset from=%s\n", server.client().remoteIP().toString().c_str());
     server.send(200, "application/json", "{\"status\":\"resetting\"}");
     prefs.begin(PREFS_NAMESPACE, false);
     prefs.clear();
@@ -523,6 +548,13 @@ void setup() {
 
     // NOW initialize the display.
     gfx->begin();
+    // Arduino_GFX's ST7789 init writes COLMOD (0x3A) = 0x55. The high nibble
+    // is RGB-parallel-interface format and should be 0 on SPI panels —
+    // Waveshare's official demo sends 0x05. Leaving it at 0x55 makes this
+    // particular panel's gamma severely R-deficient (orange → wine red,
+    // red → dark purple), while blue happens to look fine. Overwrite to 0x05.
+    bus->sendCommand(0x3A);
+    bus->sendData(0x05);
     gfx->fillScreen(0x0000);
     gfx->setTextWrap(false);
 
@@ -552,15 +584,19 @@ void loop() {
     if (millis() - lastHeartbeat > 5000) {
         lastHeartbeat = millis();
         if (inProvisioningMode) {
-            Serial.printf("[HB] AP mode | clients=%d | IP=%s | mode=%d\n",
+            Serial.printf("[HB] AP mode | clients=%d | IP=%s | mode=%d | state=%s | lastEventAge=%lums\n",
                           WiFi.softAPgetStationNum(),
                           WiFi.softAPIP().toString().c_str(),
-                          (int)WiFi.getMode());
+                          (int)WiFi.getMode(),
+                          stateName(currentState),
+                          millis() - lastEventTime);
         } else {
-            Serial.printf("[HB] STA | status=%d | IP=%s | RSSI=%d\n",
+            Serial.printf("[HB] STA | status=%d | IP=%s | RSSI=%d | state=%s | lastEventAge=%lums\n",
                           WiFi.status(),
                           WiFi.localIP().toString().c_str(),
-                          WiFi.RSSI());
+                          WiFi.RSSI(),
+                          stateName(currentState),
+                          millis() - lastEventTime);
         }
     }
 
@@ -571,7 +607,7 @@ void loop() {
         if (millis() - lastEventTime > IDLE_TIMEOUT_MS) {
             currentState = STATE_IDLE;
             drawState(currentState);
-            Serial.println("[State] → idle (timeout)");
+            Serial.printf("[State] working -> idle | reason=timeout | uptime=%lus\n", millis() / 1000);
         }
     }
 
