@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 8 cat /dev/cu.usbmodem83101)",
+      "Bash(/usr/sbin/system_profiler SPAirPortDataType)",
+      "Bash(/Users/chenhui/.local/bin/pio pkg *)",
+      "Bash(python3 -c \"import esptool\")",
+      "Bash(find ~/.platformio -name \"esptool.py\" 2>/dev/null | head -3)",
+      "Read(//Users/chenhui/.platformio/**)",
+      "Bash(~/.platformio/penv/bin/esptool.py --chip esp32c6 --port /dev/cu.usbmodem83101 --after hard_reset chip_id)",
+      "Bash(break)",
+      "Bash(~/.platformio/penv/bin/esptool.py --chip esp32c6 --port /dev/cu.usbmodem83101 --before default_reset --after hard_reset flash_id)",
+      "Bash(echo \"UPLOAD_EXIT=$?\")",
+      "Bash(python3)",
+      "Bash(lsof /dev/cu.usbmodem*)"
+    ]
+  }
+}
